@@ -1,0 +1,56 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+# Load the data from the CSV file
+df = pd.read_csv('intraday_5min_IBM.csv', parse_dates=['date'])
+
+# Calculate the 20-day moving average and standard deviation
+df['MA20'] = df['close'].rolling(window=20).mean()
+df['STD20'] = df['close'].rolling(window=20).std()
+
+# Calculate the Bollinger Bands
+df['UpperBand'] = df['MA20'] + (df['STD20'] * 2)
+df['LowerBand'] = df['MA20'] - (df['STD20'] * 2)
+
+# Define the buy and sell signals
+df['BuySignal'] = np.where(df['close'] < df['LowerBand'], 1, 0)
+df['SellSignal'] = np.where(df['close'] > df['UpperBand'], 1, 0)
+
+# Make decisions based on the signals
+df['Position'] = 0  # Default position: 0 (no position)
+for i in range(1, len(df)):
+    if df['BuySignal'][i] == 1:
+        df['Position'][i] = 1  # Buy
+    elif df['SellSignal'][i] == 1:
+        df['Position'][i] = -1  # Sell
+    else:
+        df['Position'][i] = df['Position'][i-1]  # Hold the previous position
+
+# Print the DataFrame with buy/sell signals and positions
+print(df[['date', 'close', 'UpperBand', 'LowerBand', 'BuySignal', 'SellSignal', 'Position']])
+
+# Save the DataFrame to a new CSV file with the signals and positions
+df.to_csv('stock_data_with_signals.csv', index=False)
+df.dropna()
+
+
+plt.figure(figsize=(14, 7))
+
+# Plot the closing price and Bollinger Bands
+plt.plot(df['date'], df['close'], label='Close Price', color='blue')
+plt.plot(df['date'], df['UpperBand'], label='Upper Bollinger Band', color='red')
+plt.plot(df['date'], df['LowerBand'], label='Lower Bollinger Band', color='green')
+plt.plot(df['date'], df['MA20'], label='20-Day Moving Average', color='orange')
+
+# Plot the buy signals
+plt.scatter(df[df['BuySignal'] == 1]['date'], df[df['BuySignal'] == 1]['close'], label='Buy Signal', marker='^', color='green', alpha=1)
+
+# Plot the sell signals
+plt.scatter(df[df['SellSignal'] == 1]['date'], df[df['SellSignal'] == 1]['close'], label='Sell Signal', marker='v', color='red', alpha=1)
+
+plt.title('Bollinger Bands with Buy/Sell Signals')
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.legend(loc='best')
+plt.grid()
+plt.show()
