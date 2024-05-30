@@ -1,0 +1,41 @@
+import socket
+import csv
+import time
+
+# Function to read CSV file and return data
+def read_csv(file_name):
+    data = []
+    with open(file_name, 'r') as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            data.append(row)
+    return data
+
+# Function to send data to client
+def send_data(client_socket, data):
+    for row in data:
+        client_socket.send(','.join(row).encode())
+        time.sleep(1)  # Adjust sleep time based on the size of your data
+
+# Main function
+def main():
+    # Setup server socket
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('localhost', 8888))
+    server_socket.listen(5)
+
+    # Read data from CSV file
+    csv_data = read_csv('data.csv')
+
+    while True:
+        # Accept client connection
+        client_socket, addr = server_socket.accept()
+        print(f"Connection from {addr} has been established.")
+
+        # Send data to client every 5 seconds
+        while True:
+            send_data(client_socket, csv_data)
+            time.sleep(5)
+
+if __name__ == "__main__":
+    main()
