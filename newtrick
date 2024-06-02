@@ -1,0 +1,38 @@
+import pandas as pd
+
+# Load the CSV file
+file_path = 'helloo.csv'
+data = pd.read_csv(file_path)
+
+# Extract relevant columns and filter out positions
+positions = data[data['Position'] != 0][['Date', 'Close', 'Low', 'High', 'Position']]
+
+# Calculate Risk and Reward
+positions['EntryPrice'] = positions['Close']
+positions['StopLoss'] = positions['Low']
+positions['TargetPrice'] = positions['High']
+
+positions['Risk'] = positions['EntryPrice'] - positions['StopLoss']
+positions['Reward'] = positions['TargetPrice'] - positions['EntryPrice']
+
+# Calculate Risk to Reward Ratio
+positions['RiskToRewardRatio'] = positions['Reward'] / positions['Risk']
+
+# Determine if the position is profitable
+positions['IsProfitable'] = positions['RiskToRewardRatio'] > 1
+
+# Summarize the results
+total_positions = len(positions)
+profitable_positions = positions['IsProfitable'].sum()
+unprofitable_positions = total_positions - profitable_positions
+
+summary = {
+    'Total Positions': total_positions,
+    'Profitable Positions': profitable_positions,
+    'Unprofitable Positions': unprofitable_positions,
+    'Profitability (%)': (profitable_positions / total_positions) * 100
+}
+
+# Display the results
+print(positions[['Date', 'EntryPrice', 'StopLoss', 'TargetPrice', 'Risk', 'Reward', 'RiskToRewardRatio', 'IsProfitable']])
+print(summary)
