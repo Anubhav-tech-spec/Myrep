@@ -1,0 +1,58 @@
+import pandas as pd
+import numpy as np
+import yfinance as yf
+from ta.volatility import BollingerBands
+from ta.trend import VWAP
+from ta.momentum import RSIIndicator
+
+def get_stock_data(ticker, period='1y', interval='1d'):
+    # Download historical market data from Yahoo Finance
+    data = yf.download(ticker, period=period, interval=interval)
+    return data
+
+def calculate_indicators(data):
+    # Bollinger Bands
+    bb_indicator = BollingerBands(close=data['Close'])
+    data['bb_upperband'] = bb_indicator.bollinger_hband()
+    data['bb_lowerband'] = bb_indicator.bollinger_lband()
+
+    # VWAP
+    data['vwap'] = VWAP(high=data['High'], low=data['Low'], close=data['Close'], volume=data['Volume'])
+
+    # RSI
+    rsi_indicator = RSIIndicator(close=data['Close'])
+    data['rsi'] = rsi_indicator.rsi()
+
+    return data
+
+def generate_signals(data):
+    buy_signals = []
+    sell_signals = []
+
+    for i in range(len(data)):
+        if data['Close'].iloc[i] < data['bb_lowerband'].iloc[i] and data['Close'].iloc[i] < data['vwap'].iloc[i] and data['rsi'].iloc[i] < 30:
+            buy_signals.append(data['Close'].iloc[i])
+            sell_signals.append(np.nan)
+        elif data['Close'].iloc[i] > data['bb_upperband'].iloc[i] and data['Close'].iloc[i] > data['vwap'].iloc[i] and data['rsi'].iloc[i] > 70:
+            buy_signals.append(np.nan)
+            sell_signals.append(data['Close'].iloc[i])
+        else:
+            buy_signals.append(np.nan)
+            sell_signals.append(np.nan)
+
+    data['buy_signal'] = buy_signals
+    data['sell_signal'] = sell_signals
+
+    return data
+
+def main(ticker):
+    data = get_stock_data(ticker)
+    data = calculate_indicators(data)
+    data = generate_signals(data)
+
+    return data
+
+# Example usage
+ticker = 'AAPL'
+data = main(ticker)
+print(data[['Close', 'bb_upperband', 'bb_lowerband', 'vwap', 'rsi', 'buy_signal', 'sell_signal']])
