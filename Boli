@@ -1,0 +1,48 @@
+import pandas as pd
+import csv
+
+class BollingerBands:
+    def __init__(self, input_csv, output_csv, window=20, num_std_dev=2):
+        self.input_csv = input_csv
+        self.output_csv = output_csv
+        self.window = window
+        self.num_std_dev = num_std_dev
+        self.data = pd.read_csv(input_csv)
+        self.data['Upper Band'] = None
+        self.data['Lower Band'] = None
+        self.data['Moving Average'] = None
+
+    def calculate_bollinger_bands(self, data_slice):
+        moving_avg = data_slice['Close'].rolling(window=self.window).mean().iloc[-1]
+        std_dev = data_slice['Close'].rolling(window=self.window).std().iloc[-1]
+        upper_band = moving_avg + (self.num_std_dev * std_dev)
+        lower_band = moving_avg - (self.num_std_dev * std_dev)
+        return moving_avg, upper_band, lower_band
+
+    def process_data(self):
+        with open(self.output_csv, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            header = ['Date', 'Close', 'Moving Average', 'Upper Band', 'Lower Band']
+            writer.writerow(header)
+
+            for i in range(self.window - 1, len(self.data)):
+                data_slice = self.data.iloc[:i+1]
+                moving_avg, upper_band, lower_band = self.calculate_bollinger_bands(data_slice)
+
+                self.data.at[i, 'Moving Average'] = moving_avg
+                self.data.at[i, 'Upper Band'] = upper_band
+                self.data.at[i, 'Lower Band'] = lower_band
+
+                writer.writerow([
+                    self.data.at[i, 'Date'],
+                    self.data.at[i, 'Close'],
+                    moving_avg,
+                    upper_band,
+                    lower_band
+                ])
+
+if __name__ == "__main__":
+    input_csv_path = 'input_data.csv'
+    output_csv_path = 'output_data.csv'
+    bollinger = BollingerBands(input_csv=input_csv_path, output_csv=output_csv_path)
+    bollinger.process_data()
