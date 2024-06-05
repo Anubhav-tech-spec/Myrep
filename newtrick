@@ -10,38 +10,40 @@ class MACDCalculator:
         self.data['MACD'] = None
         self.data['Signal Line'] = None
 
-    def calculate_macd(self, index):
-        # Ensure we have enough data to calculate the long EMA
+    def calculate_emas(self, index):
         if index < self.long_window - 1:
             return None, None
+
+        short_ema = self.data['Close'].iloc[:index + 1].ewm(span=self.short_window, adjust=False).mean().iloc[-1]
+        long_ema = self.data['Close'].iloc[:index + 1].ewm(span=self.long_window, adjust=False).mean().iloc[-1]
         
-        # Calculate short and long EMAs
-        if index == self.long_window - 1:
-            short_ema = self.data.loc[:index, 'Close'].ewm(span=self.short_window, adjust=False).mean().iloc[-1]
-            long_ema = self.data.loc[:index, 'Close'].ewm(span=self.long_window, adjust=False).mean().iloc[-1]
-        else:
-            short_ema = self.data.loc[:index, 'Close'].ewm(span=self.short_window, adjust=False).mean().iloc[-1]
-            long_ema = self.data.loc[:index, 'Close'].ewm(span=self.long_window, adjust=False).mean().iloc[-1]
+        return short_ema, long_ema
+
+    def calculate_macd(self, index):
+        short_ema, long_ema = self.calculate_emas(index)
         
-        # Calculate MACD
+        if short_ema is None or long_ema is None:
+            return None, None
+
         macd = short_ema - long_ema
-        
-        # Calculate signal line
+        self.data.at[index, 'MACD'] = macd
+
         if index < self.long_window + self.signal_window - 2:
-            signal_line = self.data.loc[:index, 'Close'].ewm(span=self.signal_window, adjust=False).mean().iloc[-1]
-        else:
-            signal_line = self.data.loc[index - self.signal_window + 1:index, 'MACD'].ewm(span=self.signal_window, adjust=False).mean().iloc[-1]
-        
+            return macd, None
+
+        signal_line = self.data['MACD'].iloc[self.long_window - 1:index + 1].ewm(span=self.signal_window, adjust=False).mean().iloc[-1]
         return macd, signal_line
 
     def process_data(self):
         last_row = None
         for i in range(len(self.data)):
             macd, signal_line = self.calculate_macd(i)
-            if macd is not None and signal_line is not None:
+            if macd is not None:
                 self.data.at[i, 'MACD'] = macd
+            if signal_line is not None:
                 self.data.at[i, 'Signal Line'] = signal_line
-                last_row = self.data.iloc[[i]]  # Store the last processed row as a DataFrame
+
+            last_row = self.data.iloc[[i]]  # Store the last processed row as a DataFrame
 
             print(last_row)  # Print the updated row for debugging
 
