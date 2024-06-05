@@ -1,38 +1,69 @@
 import pandas as pd
+import time
 
-# Load the CSV file
-file_path = 'helloo.csv'
-data = pd.read_csv(file_path)
+class MACDCalculator:
+    def __init__(self, data_frame, short_window=12, long_window=26, signal_window=9):
+        self.data = data_frame
+        self.short_window = short_window
+        self.long_window = long_window
+        self.signal_window = signal_window
+        self.data['MACD'] = None
+        self.data['Signal Line'] = None
 
-# Extract relevant columns and filter out positions
-positions = data[data['Position'] != 0][['Date', 'Close', 'Low', 'High', 'Position']]
+    def calculate_macd(self, index):
+        # Ensure we have enough data to calculate the long EMA
+        if index < self.long_window - 1:
+            return None, None
+        
+        # Calculate short and long EMAs
+        if index == self.long_window - 1:
+            short_ema = self.data.loc[:index, 'Close'].ewm(span=self.short_window, adjust=False).mean().iloc[-1]
+            long_ema = self.data.loc[:index, 'Close'].ewm(span=self.long_window, adjust=False).mean().iloc[-1]
+        else:
+            short_ema = self.data.loc[:index, 'Close'].ewm(span=self.short_window, adjust=False).mean().iloc[-1]
+            long_ema = self.data.loc[:index, 'Close'].ewm(span=self.long_window, adjust=False).mean().iloc[-1]
+        
+        # Calculate MACD
+        macd = short_ema - long_ema
+        
+        # Calculate signal line
+        if index < self.long_window + self.signal_window - 2:
+            signal_line = self.data.loc[:index, 'Close'].ewm(span=self.signal_window, adjust=False).mean().iloc[-1]
+        else:
+            signal_line = self.data.loc[index - self.signal_window + 1:index, 'MACD'].ewm(span=self.signal_window, adjust=False).mean().iloc[-1]
+        
+        return macd, signal_line
 
-# Calculate Risk and Reward
-positions['EntryPrice'] = positions['Close']
-positions['StopLoss'] = positions['Low']
-positions['TargetPrice'] = positions['High']
+    def process_data(self):
+        last_row = None
+        for i in range(len(self.data)):
+            macd, signal_line = self.calculate_macd(i)
+            if macd is not None and signal_line is not None:
+                self.data.at[i, 'MACD'] = macd
+                self.data.at[i, 'Signal Line'] = signal_line
+                last_row = self.data.iloc[[i]]  # Store the last processed row as a DataFrame
 
-positions['Risk'] = positions['EntryPrice'] - positions['StopLoss']
-positions['Reward'] = positions['TargetPrice'] - positions['EntryPrice']
+            print(last_row)  # Print the updated row for debugging
 
-# Calculate Risk to Reward Ratio
-positions['RiskToRewardRatio'] = positions['Reward'] / positions['Risk']
+            # Wait for 1 minute before processing the next row
+            time.sleep(60)
+        
+        return last_row  # Return the last processed row as a DataFrame
 
-# Determine if the position is profitable
-positions['IsProfitable'] = positions['RiskToRewardRatio'] > 1
+if __name__ == "__main__":
+    # Create a sample DataFrame
+    data = {
+        'Date': ['2023-06-01', '2023-06-02', '2023-06-03', '2023-06-04', '2023-06-05', '2023-06-06', '2023-06-07', '2023-06-08', '2023-06-09', '2023-06-10'],
+        'Close': [100, 105, 102, 108, 107, 110, 115, 120, 118, 125],
+        'Volume': [200, 220, 210, 230, 240, 250, 260, 270, 280, 290]
+    }
+    input_data_frame = pd.DataFrame(data)
 
-# Summarize the results
-total_positions = len(positions)
-profitable_positions = positions['IsProfitable'].sum()
-unprofitable_positions = total_positions - profitable_positions
+    macd_calculator = MACDCalculator(data_frame=input_data_frame)
+    last_row = macd_calculator.process_data()
 
-summary = {
-    'Total Positions': total_positions,
-    'Profitable Positions': profitable_positions,
-    'Unprofitable Positions': unprofitable_positions,
-    'Profitability (%)': (profitable_positions / total_positions) * 100
-}
+    # Print the last row processed
+    print(last_row)
 
-# Display the results
-print(positions[['Date', 'EntryPrice', 'StopLoss', 'TargetPrice', 'Risk', 'Reward', 'RiskToRewardRatio', 'IsProfitable']])
-print(summary)
+    # After processing, you can save the DataFrame to a CSV file if needed
+    input_data_frame.to_csv('output_data.csv', index=False)
