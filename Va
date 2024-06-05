@@ -1,0 +1,25 @@
+import pandas as pd
+
+class VWAPCalculator:
+    def __init__(self, input_csv):
+        self.input_csv = input_csv
+        self.data = pd.read_csv(input_csv)
+        self.data['VWAP'] = None
+
+    def calculate_vwap(self):
+        cum_price_volume = 0
+        cum_volume = 0
+        
+        for i in range(len(self.data)):
+            cum_price_volume += self.data.at[i, 'Close'] * self.data.at[i, 'Volume']
+            cum_volume += self.data.at[i, 'Volume']
+            self.data.at[i, 'VWAP'] = cum_price_volume / cum_volume if cum_volume != 0 else 0
+
+    def process_data(self):
+        self.calculate_vwap()
+        self.data.to_csv(self.input_csv, index=False)
+
+if __name__ == "__main__":
+    input_csv_path = 'input_data.csv'
+    vwap_calculator = VWAPCalculator(input_csv=input_csv_path)
+    vwap_calculator.process_data()
