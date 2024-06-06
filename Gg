@@ -1,0 +1,59 @@
+import pandas as pd
+import time
+
+class RSICalculator:
+    def __init__(self, data_frame, window=14):
+        self.data = data_frame
+        self.window = window
+        self.data['RSI'] = None
+
+    def calculate_rsi(self, prices):
+        delta = prices.diff()
+        gain = (delta.where(delta > 0, 0)).fillna(0)
+        loss = (-delta.where(delta < 0, 0)).fillna(0)
+
+        avg_gain = gain.rolling(window=self.window, min_periods=1).mean()
+        avg_loss = loss.rolling(window=self.window, min_periods=1).mean()
+
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+
+        return rsi
+
+    def process_data(self):
+        for i in range(len(self.data)):
+            if i < self.window - 1:
+                continue
+
+            rsi = self.calculate_rsi(self.data['Close'].iloc[:i+1]).iloc[-1]
+            self.data.iloc[i, self.data.columns.get_loc('RSI')] = rsi
+
+            # Print the updated row for debugging
+            print(self.data.iloc[[i]])
+
+            # Wait for 1 minute before processing the next row
+            time.sleep(1)  # Changed to 1 second for testing purposes
+
+        # Return the last processed row as a DataFrame
+        return self.data.iloc[[-1]]
+
+if __name__ == "__main__":
+    # Create a sample DataFrame
+    data = {
+        'Date': ['2023-06-01', '2023-06-02', '2023-06-03', '2023-06-04', '2023-06-05', '2023-06-06', '2023-06-07', '2023-06-08', '2023-06-09', '2023-06-10',
+                 '2023-06-11', '2023-06-12', '2023-06-13', '2023-06-14', '2023-06-15', '2023-06-16', '2023-06-17', '2023-06-18', '2023-06-19', '2023-06-20',
+                 '2023-06-21', '2023-06-22', '2023-06-23', '2023-06-24', '2023-06-25', '2023-06-26', '2023-06-27', '2023-06-28', '2023-06-29', '2023-06-30'],
+        'Close': [100, 105, 102, 108, 107, 110, 115, 120, 118, 125, 130, 132, 135, 140, 142, 145, 150, 155, 160, 158, 162, 165, 170, 175, 180, 178, 182, 185, 190, 195],
+        'Volume': [200, 220, 210, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460, 470, 480, 490]
+    }
+    input_data_frame = pd.DataFrame(data)
+
+    # Calculate RSI
+    rsi_calculator = RSICalculator(data_frame=input_data_frame)
+    last_rsi_row = rsi_calculator.process_data()
+
+    # Print the last row processed
+    print(last_rsi_row)
+
+    # After processing, you can save the DataFrame to a CSV file if needed
+    input_data_frame.to_csv('output_data.csv', index=False)
