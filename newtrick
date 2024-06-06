@@ -11,11 +11,16 @@ class MACDCalculator:
         self.data['Signal Line'] = None
 
     def calculate_emas(self, index):
-        if index < self.long_window - 1:
-            return None, None
-
-        short_ema = self.data['Close'].iloc[:index + 1].ewm(span=self.short_window, adjust=False).mean().iloc[-1]
-        long_ema = self.data['Close'].iloc[:index + 1].ewm(span=self.long_window, adjust=False).mean().iloc[-1]
+        # Calculate short and long EMAs
+        if index + 1 >= self.short_window:
+            short_ema = self.data['Close'].iloc[:index + 1].ewm(span=self.short_window, adjust=False).mean().iloc[-1]
+        else:
+            short_ema = None
+        
+        if index + 1 >= self.long_window:
+            long_ema = self.data['Close'].iloc[:index + 1].ewm(span=self.long_window, adjust=False).mean().iloc[-1]
+        else:
+            long_ema = None
         
         return short_ema, long_ema
 
@@ -28,7 +33,7 @@ class MACDCalculator:
         macd = short_ema - long_ema
         self.data.at[index, 'MACD'] = macd
 
-        if index < self.long_window + self.signal_window - 2:
+        if index + 1 < self.long_window + self.signal_window:
             return macd, None
 
         signal_line = self.data['MACD'].iloc[self.long_window - 1:index + 1].ewm(span=self.signal_window, adjust=False).mean().iloc[-1]
@@ -52,6 +57,24 @@ class MACDCalculator:
         
         return last_row  # Return the last processed row as a DataFrame
 
+    def append_data(self, new_data):
+        # Create a DataFrame from the new data
+        new_df = pd.DataFrame([new_data])
+        
+        # Concatenate the new data to the existing DataFrame
+        self.data = pd.concat([self.data, new_df], ignore_index=True)
+        
+        # Recalculate MACD and Signal Line for the new data
+        last_index = len(self.data) - 1
+        macd, signal_line = self.calculate_macd(last_index)
+        if macd is not None:
+            self.data.at[last_index, 'MACD'] = macd
+        if signal_line is not None:
+            self.data.at[last_index, 'Signal Line'] = signal_line
+        
+        last_row = self.data.iloc[[-1]]  # Return the last processed row as a DataFrame
+        return last_row
+
 if __name__ == "__main__":
     # Create a sample DataFrame
     data = {
@@ -64,62 +87,12 @@ if __name__ == "__main__":
     macd_calculator = MACDCalculator(data_frame=input_data_frame)
     last_row = macd_calculator.process_data()
 
+    # Example dynamic data update
+    new_data = {'Date': '2023-06-11', 'Close': 130, 'Volume': 300}
+    last_row = macd_calculator.append_data(new_data)
+
     # Print the last row processed
     print(last_row)
-
-    # After processing, you can save the DataFrame to a CSV file if needed
-    input_data_frame.to_csv('output_data.csv', index=False)
-import pandas as pd
-
-class MACDCalculator:
-    def __init__(self, short_window=12, long_window=26, signal_window=9):
-        self.short_window = short_window
-        self.long_window = long_window
-        self.signal_window = signal_window
-        self.data = pd.DataFrame(columns=['Date', 'Close', 'Volume', 'MACD', 'Signal Line'])
-
-    def calculate_emas(self):
-        self.data['Short EMA'] = self.data['Close'].ewm(span=self.short_window, adjust=False).mean()
-        self.data['Long EMA'] = self.data['Close'].ewm(span=self.long_window, adjust=False).mean()
-    
-    def calculate_macd(self):
-        self.data['MACD'] = self.data['Short EMA'] - self.data['Long EMA']
-        self.data['Signal Line'] = self.data['MACD'].ewm(span=self.signal_window, adjust=False).mean()
-
-    def append_data(self, new_data):
-        new_df = pd.DataFrame([new_data], columns=['Date', 'Close', 'Volume'])
-        self.data = pd.concat([self.data, new_df], ignore_index=True)
-        self.calculate_emas()
-        self.calculate_macd()
-
-        last_row = self.data.iloc[[-1]]  # Return the last row as a DataFrame
-        return last_row
-
-    def process_data(self):
-        for i in range(len(self.data)):
-            self.calculate_emas()
-            self.calculate_macd()
-
-if __name__ == "__main__":
-    macd_calculator = MACDCalculator()
-
-    # Example dynamic data update
-    dynamic_data = [
-        {'Date': '2023-06-01', 'Close': 100, 'Volume': 200},
-        {'Date': '2023-06-02', 'Close': 105, 'Volume': 220},
-        {'Date': '2023-06-03', 'Close': 102, 'Volume': 210},
-        {'Date': '2023-06-04', 'Close': 108, 'Volume': 230},
-        {'Date': '2023-06-05', 'Close': 107, 'Volume': 240},
-        {'Date': '2023-06-06', 'Close': 110, 'Volume': 250},
-        {'Date': '2023-06-07', 'Close': 115, 'Volume': 260},
-        {'Date': '2023-06-08', 'Close': 120, 'Volume': 270},
-        {'Date': '2023-06-09', 'Close': 118, 'Volume': 280},
-        {'Date': '2023-06-10', 'Close': 125, 'Volume': 290}
-    ]
-
-    for data in dynamic_data:
-        last_row = macd_calculator.append_data(data)
-        print(last_row)
 
     # After processing, you can save the DataFrame to a CSV file if needed
     macd_calculator.data.to_csv('output_data.csv', index=False)
