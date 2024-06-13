@@ -1,0 +1,49 @@
+import pandas as pd
+from backtesting import Backtest, Strategy
+from backtesting.lib import crossover
+from backtesting.test import GOOG
+from backtesting.lib import SignalStrategy, TrailingStrategy
+
+class MACDStrategy(Strategy):
+    def init(self, short_ema=12, long_ema=26, signal_ema=9):
+        # Define short and long EMAs
+        self.ema12 = self.I(pd.Series.ewm, self.data.Close, span=short_ema)
+        self.ema26 = self.I(pd.Series.ewm, self.data.Close, span=long_ema)
+        # Define MACD line and Signal line
+        self.macd = self.I(lambda x, y: x - y, self.ema12, self.ema26)
+        self.signal = self.I(pd.Series.ewm, self.macd, span=signal_ema)
+        
+    def next(self):
+        # Generate buy signal
+        if crossover(self.macd, self.signal):
+            self.buy()
+        # Generate sell signal
+        elif crossover(self.signal, self.macd):
+            self.position.close()
+
+# Load your data
+# For example, using backtesting.test.GOOG (replace with your own data)
+data = GOOG
+
+# Define the function to optimize
+def optimize_macd(short_ema, long_ema, signal_ema):
+    bt = Backtest(data, MACDStrategy, cash=10000, commission=.002)
+    output = bt.run(short_ema=short_ema, long_ema=long_ema, signal_ema=signal_ema)
+    return output['Equity Final [$]']
+
+# Optimize parameters using backtesting.py's built-in optimizer
+from backtesting.lib import Optimizer
+
+optimizer = Optimizer(optimize_macd, param_ranges={
+    'short_ema': range(5, 15),
+    'long_ema': range(20, 30),
+    'signal_ema': range(5, 15)
+})
+best_params = optimizer.maximize()
+print(best_params)
+
+# Run the backtest with optimized parameters
+bt = Backtest(data, MACDStrategy, cash=10000, commission=.002)
+output = bt.run(**best_params)
+print(output)
+bt.plot()
