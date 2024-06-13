@@ -1,0 +1,19 @@
+from sklearn.model_selection import KFold
+import numpy as np
+
+kf = KFold(n_splits=5)
+results = []
+
+for train_index, test_index in kf.split(data):
+    train_data = data.iloc[train_index]
+    test_data = data.iloc[test_index]
+    
+    bt = Backtest(train_data, MyStrategy, cash=10000, commission=.002)
+    output = bt.run(sma_period=20)
+    
+    bt_test = Backtest(test_data, MyStrategy, cash=10000, commission=.002)
+    output_test = bt_test.run(sma_period=20)
+    
+    results.append(output_test['Equity Final [$]'])
+
+print(f"Cross-validated result: {np.mean(results)}")
