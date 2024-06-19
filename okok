@@ -1,56 +1,35 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-# Load the data from the CSV file
-df = pd.read_csv('intraday_5min_IBM.csv', parse_dates=['date'])
 
-# Calculate the 20-day moving average and standard deviation
-df['MA20'] = df['close'].rolling(window=20).mean()
-df['STD20'] = df['close'].rolling(window=20).std()
+df['rsi']=ta.momentum.rsi(df["Close"], n=14, fillna=False)
+df['r']=ta.momentum.wr(df["High"], df["Low"], df["Close"], lbp=14, fillna=False)
+df['cci']=ta.trend.cci(df["High"], df["Low"], df["Close"], n=20, c=0.015, fillna=False) 
+df['roc']=ta.momentum.roc(df['Close'], n = 14, fillna = False)
+df['mfi']=ta.volume.money_flow_index(df['High'], df['Low'], df['Close'], df['Volume'], n=14, fillna=False)
+df['macd']=ta.trend.macd(df['Close'], n_slow=26, n_fast=12, fillna=False)
+df['ema']=ta.trend.ema_indicator(df['Close'], n = 14, fillna = False)
+df['sma']=ta.trend.sma_indicator(df['Close'], n = 14, fillna = False)
+df['ma']=ta.momentum.kama(df["Close"], n=10, pow1=2, pow2=30, fillna=False)
 
-# Calculate the Bollinger Bands
-df['UpperBand'] = df['MA20'] + (df['STD20'] * 2)
-df['LowerBand'] = df['MA20'] - (df['STD20'] * 2)
-
-# Define the buy and sell signals
-df['BuySignal'] = np.where(df['close'] < df['LowerBand'], 1, 0)
-df['SellSignal'] = np.where(df['close'] > df['UpperBand'], 1, 0)
-
-# Make decisions based on the signals
-df['Position'] = 0  # Default position: 0 (no position)
-for i in range(1, len(df)):
-    if df['BuySignal'][i] == 1:
-        df['Position'][i] = 1  # Buy
-    elif df['SellSignal'][i] == 1:
-        df['Position'][i] = -1  # Sell
-    else:
-        df['Position'][i] = df['Position'][i-1]  # Hold the previous position
-
-# Print the DataFrame with buy/sell signals and positions
-print(df[['date', 'close', 'UpperBand', 'LowerBand', 'BuySignal', 'SellSignal', 'Position']])
-
-# Save the DataFrame to a new CSV file with the signals and positions
-df.to_csv('stock_data_with_signals.csv', index=False)
-df.dropna()
-
-
-plt.figure(figsize=(14, 7))
-
-# Plot the closing price and Bollinger Bands
-plt.plot(df['date'], df['close'], label='Close Price', color='blue')
-plt.plot(df['date'], df['UpperBand'], label='Upper Bollinger Band', color='red')
-plt.plot(df['date'], df['LowerBand'], label='Lower Bollinger Band', color='green')
-plt.plot(df['date'], df['MA20'], label='20-Day Moving Average', color='orange')
-
-# Plot the buy signals
-plt.scatter(df[df['BuySignal'] == 1]['date'], df[df['BuySignal'] == 1]['close'], label='Buy Signal', marker='^', color='green', alpha=1)
-
-# Plot the sell signals
-plt.scatter(df[df['SellSignal'] == 1]['date'], df[df['SellSignal'] == 1]['close'], label='Sell Signal', marker='v', color='red', alpha=1)
-
-plt.title('Bollinger Bands with Buy/Sell Signals')
-plt.xlabel('Date')
-plt.ylabel('Price')
-plt.legend(loc='best')
-plt.grid()
-plt.show()
+df['bmavg']=ta.volatility.bollinger_mavg(df["Close"], n=20, fillna=False)
+df['dchb']=ta.volatility.donchian_channel_hband(df["High"], df["Low"], df["Close"], n=20, offset=0, fillna=False)
+df['bi']=ta.volatility.bollinger_hband_indicator(df["Close"], n=20, ndev=2, fillna=False)
+df['vpt']=ta.volume.volume_price_trend(df["Close"], df["Volume"], fillna=False)
+df['seom']=ta.volume.sma_ease_of_movement(df["High"], df["Low"], df["Volume"], n=14, fillna=False)
+df['obv']=ta.volume.on_balance_volume(df["Close"], df["Volume"], fillna=False)
+df['nvi']=ta.volume.negative_volume_index(df["Close"], df["Volume"], fillna=False)
+df['fi']=ta.volume.force_index(df["Close"], df["Volume"], n=13, fillna=False)
+df['eom']=ta.volume.ease_of_movement(df["High"], df["Low"], df["Volume"], n=14, fillna=False)
+df['cmf']=ta.volume.chaikin_money_flow(df["High"], df["Low"], df["Close"], df["Volume"], n=20, fillna=False)
+df['adi']=ta.volume.acc_dist_index(df["High"], df["Low"], df["Close"], df["Volume"], fillna=False)
+df["m1"]=(df["Close"]/df["Close"].shift(1))*1000
+df["m2"]=(df["Close"]/df["Close"].shift(2))*1000
+df["m3"]=(df["Close"]/df["Close"].shift(3))*1000
+df["m4"]=(df["Close"]/df["Close"].shift(4))*1000
+df["m5"]=(df["Close"]/df["Close"].shift(5))*1000
+df["m6"]=(df["Close"]/df["Close"].shift(6))*1000
+df["pvc"]=(df["Volume"]-df["Volume"].shift(1))/df["Volume"].shift(1)*1000
+df["pdc"]=(df["Close"]-df["Close"].shift(1))/df["Close"].shift(1)*1000
+df['std_3'] = df['pdc'].rolling(5).std()
+df['ret_3'] = df['pdc'].rolling(5).mean()
+df["nextOpen"]=(df["Open"].shift(-1)-df["Close"])/df["Close"]*1000
+df["Signal"]=""
+df['cci'].tail(14)
