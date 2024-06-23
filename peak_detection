@@ -1,0 +1,86 @@
+from scipy.signal import find_peaks as fp
+from scipy.signal import savgol_filter
+from peakutils import baseline
+import pandas as pd
+
+def SmoothData(df, **kwargs):
+    """Applies a Savitzky-Golay filter to each column of an input Pandas DataFrame to smooth the data.
+
+    Parameters:
+    df (pandas.DataFrame): Input DataFrame with data to smooth.
+    **kwargs: Optional keyword arguments to be passed to the Savitzky-Golay filter.
+
+    Returns:
+    pandas.DataFrame: DataFrame with smoothed values for each input column.
+    """
+    new_df = pd.DataFrame(index=df.index)
+    for i, vals in df.items():
+        new_df[i+'_ftrd'] = savgol_filter(vals, **kwargs)
+    return new_df
+
+def BaselineCorrect(df):
+    """Corrects the baseline of each column in an input Pandas DataFrame by subtracting a polynomial fit of degree 3.
+
+    Parameters:
+    df (pandas.DataFrame): Input DataFrame with data to correct.
+
+    Returns:
+    pandas.DataFrame: DataFrame with baseline-corrected values for each input column.
+    """
+    new_df = pd.DataFrame(index=df.index)
+    for i, vals in df.items():
+        new_df[i+'_bc'] = vals - baseline(vals, deg=3)
+    return new_df
+
+def GetPeaks(df, **kwargs):
+    """Identifies peaks and troughs in each column of an input Pandas DataFrame and returns a DataFrame with signals.
+
+    Parameters:
+    df (pandas.DataFrame): Input DataFrame with time series data to analyze.
+    **kwargs: Optional keyword arguments to be passed to the peak-finding function.
+
+    Returns:
+    pandas.DataFrame: DataFrame with 1 for peaks, -1 for troughs, and 0 otherwise for each column.
+    """
+    new_df = pd.DataFrame(index=df.index)
+    for i, vals in df.items():
+        peaks, _ = fp(vals, **kwargs)
+        troughs, _ = fp(-vals, **kwargs)
+        
+        signal = [0] * len(vals)
+        for peak in peaks:
+            signal[peak] = 1
+        for trough in troughs:
+            signal[trough] = -1
+            
+        new_df[i+'_signal'] = signal
+    return new_df
+
+def GetLabels(wide_df):
+    """Extracts labels from the index of an input Pandas DataFrame.
+
+    Parameters:
+    wide_df (pandas.DataFrame): Input DataFrame with index containing labels.
+
+    Returns:
+    pandas.Series: Series of labels extracted from the index of the input DataFrame.
+    """
+    labels = (wide_df.index.astype(str).str.split('_\d+', n=1, regex=True, expand=True)
+              .get_level_values(0))
+    return labels
+
+# Example usage:
+if __name__ == "__main__":
+    data = pd.DataFrame({'A': [1, 2, 3, 2, 1], 'B': [5, 6, 7, 6, 5], 'C': [10, 11, 12, 11, 10]})
+    
+    smoothed_data = SmoothData(data, window_length=3, polyorder=1)
+    print("Smoothed Data:\n", smoothed_data)
+    
+    baseline_corrected_data = BaselineCorrect(data)
+    print("Baseline Corrected Data:\n", baseline_corrected_data)
+    
+    peak_signals = GetPeaks(data, distance=1)
+    print("Peak Signals:\n", peak_signals)
+    
+    labels = GetLabels(data)
+    print("Labels:\n", labels)
